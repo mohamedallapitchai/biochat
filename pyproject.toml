@@ -15,7 +15,9 @@ dependencies = [
     "langchain-core",
     "langchain-community",
     "langchain-openai",
-    "pypdf"
+    "pypdf",
+    "langchain-text-splitters",
+    "sentence-transformers"
 ]
 
 
