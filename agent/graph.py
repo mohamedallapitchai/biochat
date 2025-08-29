@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END
 from langgraph.graph import StateGraph, MessagesState
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -35,6 +34,4 @@ graph_builder.set_entry_point("analyze_and_classify")
 #     stop_condition,
 #     {True: END, False: "analyze_and_classify"}
 # )
-
-memory = MemorySaver()
 graph = graph_builder.compile()
