@@ -82,28 +82,28 @@ def analyze_and_classify(state: BioMessageState, runtime: Runtime[ContextSchema]
     chain = prompt_template | model
     question = state["messages"][-1].content
     response = chain.invoke({"name": runtime.context['name'], "question": question})
-    ctr = state["ctr"]
-    personal_ctr = state["personal_ctr"]
-    courtesy_ctr = state["courtesy_ctr"]
+    ctr = 0
+    personal_ctr = 0
+    courtesy_ctr = 0
     logger.info(f"type of question is : {response.content.lower()}")
     if response.content.lower() == "professional":
         if ctr >= runtime.context['ctr_th']:
             main_resp = {"role": "ai", "content": "Hope you got enough information!. Have to go. Good Bye!"}
         else:
             main_resp = query_or_respond(state, runtime)
-        ctr = ctr + 1
+        ctr = 1
     elif response.content.lower() == "courtesy":
         if courtesy_ctr >= runtime.context['courtesy_ctr_th']:
             main_resp = {"role": "ai", "content": "Nice talking to you!. Have to go. Good Bye!"}
         else:
             main_resp = courtesy_query(state, courtesy_prompt, runtime.context['name'])
-        courtesy_ctr = courtesy_ctr + 1
+        courtesy_ctr = 1
     else:
         if personal_ctr >= runtime.context['personal_ctr_th']:
             main_resp = {"role": "ai", "content": "Too many personal questions - Good Bye!"}
         else:
             main_resp = personal_query(state, personal_prompt, runtime.context['name'])
-        personal_ctr = personal_ctr + 1
+        personal_ctr = 1
     return {"messages": [main_resp], "ctr": ctr, "personal_ctr": personal_ctr, "courtesy_ctr": courtesy_ctr}
 
 
