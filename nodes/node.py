@@ -14,7 +14,7 @@ from persona.agent import agent_analyze_and_classify_prompt, agent_courtesy_quer
     agent_generate_message_prompt
 from persona.me import me_analyze_and_classify_prompt, me_courtesy_query_prompt, me_personal_query_prompt, \
     me_generate_message_prompt
-from stores.store import vector_store
+from stores.store import vector_store, retriever
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ class ContextSchema(TypedDict):
     personal_ctr_th: int
     courtesy_ctr_th: int
     persona: str
+    name: str
 
 
 @dataclass
@@ -44,7 +45,9 @@ class BioMessageState(MessagesState):
 def retrieve(query: str):
     """Retrieve information related to a query asking for professional information"""
     # print("INSIDE TOOL")
-    retrieved_docs = vector_store.similarity_search(query, k=2)
+
+    # retrieved_docs = vector_store.similarity_search(query, k=2)
+    retrieved_docs = retriever.invoke(query)
     serialized = "\n\n".join(
         f"Source: {doc.metadata}\nContent: {doc.page_content}"
         for doc in retrieved_docs
@@ -64,6 +67,7 @@ def query_or_respond(state: BioMessageState, context: Runtime[ContextSchema]) ->
 
 
 def analyze_and_classify(state: BioMessageState, runtime: Runtime[ContextSchema]):
+    print(f"runtime context: {runtime.context}")
     if runtime.context['persona'] == "agent":
         prompt_str = agent_analyze_and_classify_prompt
         courtesy_prompt = agent_courtesy_query_prompt
@@ -77,7 +81,7 @@ def analyze_and_classify(state: BioMessageState, runtime: Runtime[ContextSchema]
     prompt_template = Prompt.from_template(prompt_str)
     chain = prompt_template | model
     question = state["messages"][-1].content
-    response = chain.invoke({"question": question})
+    response = chain.invoke({"name": runtime.context['name'], "question": question})
     ctr = state["ctr"]
     personal_ctr = state["personal_ctr"]
     courtesy_ctr = state["courtesy_ctr"]
@@ -92,19 +96,19 @@ def analyze_and_classify(state: BioMessageState, runtime: Runtime[ContextSchema]
         if courtesy_ctr >= runtime.context['courtesy_ctr_th']:
             main_resp = {"role": "ai", "content": "Nice talking to you!. Have to go. Good Bye!"}
         else:
-            main_resp = courtesy_query(state, courtesy_prompt)
+            main_resp = courtesy_query(state, courtesy_prompt, runtime.context['name'])
         courtesy_ctr = courtesy_ctr + 1
     else:
         if personal_ctr >= runtime.context['personal_ctr_th']:
             main_resp = {"role": "ai", "content": "Too many personal questions - Good Bye!"}
         else:
-            main_resp = personal_query(state, personal_prompt)
+            main_resp = personal_query(state, personal_prompt, runtime.context['name'])
         personal_ctr = personal_ctr + 1
     return {"messages": [main_resp], "ctr": ctr, "personal_ctr": personal_ctr, "courtesy_ctr": courtesy_ctr}
 
 
-def courtesy_query(state: MessagesState, courtesy_prompt):
-    system_message_content = courtesy_prompt
+def courtesy_query(state: MessagesState, courtesy_prompt, name):
+    system_message_content = courtesy_prompt.format(name=name)
 
     prompt = [SystemMessage(system_message_content)] + state["messages"]
 
@@ -112,8 +116,8 @@ def courtesy_query(state: MessagesState, courtesy_prompt):
     return response
 
 
-def personal_query(state: MessagesState, personal_prompt):
-    system_message_content = personal_prompt
+def personal_query(state: MessagesState, personal_prompt, name):
+    system_message_content = personal_prompt.format(name=name)
     prompt = [SystemMessage(system_message_content)] + state["messages"]
 
     response = model.invoke(prompt)
@@ -137,9 +141,9 @@ def generate(state: BioMessageState, runtime: Runtime[ContextSchema]) -> Message
     docs_content = "\n\n".join(doc.content for doc in tool_messages)
 
     if runtime.context['persona'] == "agent":
-        generate_prompt = agent_generate_message_prompt
+        generate_prompt = agent_generate_message_prompt.format(name=runtime.context['name'])
     else:
-        generate_prompt = me_generate_message_prompt
+        generate_prompt = me_generate_message_prompt.format(name=runtime.context['name'])
 
     system_message_content = generate_prompt + f"{docs_content}"
 
