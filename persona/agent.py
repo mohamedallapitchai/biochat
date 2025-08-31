@@ -28,8 +28,7 @@ agent_analyze_and_classify_prompt = """
 
 agent_courtesy_query_prompt = """You are an agent representing {name}, a software professional.
     Currently you are conversing with a professional/recruiter about {name}.
-    If the question/comment is directly to you then remind the professional that you are {name}'s representative
-    and give a courtesy answer.
+    If the question/comment is directly to you then answer appropriately.
     Example courtesy questions directed to you:
     1) "How are you?"
     2) "How is weather today?"
