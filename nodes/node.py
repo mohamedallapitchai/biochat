@@ -36,9 +36,9 @@ class ContextSchema(TypedDict):
 
 @dataclass
 class BioMessageState(MessagesState):
-    ctr: Annotated[int, operator.add]
-    personal_ctr: Annotated[int, operator.add]
-    courtesy_ctr: Annotated[int, operator.add]
+    ctr: Annotated[int, operator.add] = 0
+    personal_ctr: Annotated[int, operator.add] = 0
+    courtesy_ctr: Annotated[int, operator.add] = 0
 
 
 @tool(response_format="content_and_artifact")
@@ -66,8 +66,7 @@ def query_or_respond(state: BioMessageState, context: Runtime[ContextSchema]) ->
     # return {"messages": [response]}
 
 
-def analyze_and_classify(state: BioMessageState, runtime: Runtime[ContextSchema]):
-    print(f"runtime context: {runtime.context}")
+def analyze_and_classify(state: BioMessageState, runtime: Runtime[ContextSchema]) -> BioMessageState:
     if runtime.context['persona'] == "agent":
         prompt_str = agent_analyze_and_classify_prompt
         courtesy_prompt = agent_courtesy_query_prompt
@@ -82,9 +81,9 @@ def analyze_and_classify(state: BioMessageState, runtime: Runtime[ContextSchema]
     chain = prompt_template | model
     question = state["messages"][-1].content
     response = chain.invoke({"name": runtime.context['name'], "question": question})
-    ctr = 0
-    personal_ctr = 0
-    courtesy_ctr = 0
+    ctr = state['ctr']
+    personal_ctr = state['personal_ctr']
+    courtesy_ctr = state['courtesy_ctr']
     logger.info(f"type of question is : {response.content.lower()}")
     if response.content.lower() == "professional":
         if ctr >= runtime.context['ctr_th']:
