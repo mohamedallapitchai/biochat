@@ -14,7 +14,7 @@ from persona.agent import agent_analyze_and_classify_prompt, agent_courtesy_quer
     agent_generate_message_prompt
 from persona.me import me_analyze_and_classify_prompt, me_courtesy_query_prompt, me_personal_query_prompt, \
     me_generate_message_prompt
-from stores.store import vector_store, retriever
+from stores.store import get_retriever
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ def retrieve(query: str):
     # print("INSIDE TOOL")
 
     # retrieved_docs = vector_store.similarity_search(query, k=2)
-    retrieved_docs = retriever.invoke(query)
+    retrieved_docs = get_retriever().invoke(query)
     serialized = "\n\n".join(
         f"Source: {doc.metadata}\nContent: {doc.page_content}"
         for doc in retrieved_docs
