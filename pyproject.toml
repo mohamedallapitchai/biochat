@@ -19,7 +19,8 @@ dependencies = [
     "langchain-text-splitters",
     "sentence-transformers",
     "boto3",
-    "unstructured[pdf]"
+    "unstructured[pdf]",
+    "opencv-python-headless>=4.9"
 ]
 
 
