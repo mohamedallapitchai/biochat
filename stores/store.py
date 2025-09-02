@@ -1,3 +1,5 @@
+import threading
+
 from langchain.retrievers import ParentDocumentRetriever
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.vectorstores import InMemoryVectorStore
@@ -9,13 +11,23 @@ embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-b
 vector_store = InMemoryVectorStore(embeddings)
 store = InMemoryStore()
 
+retriever = None
+
 
 def get_retriever():
-    retriever = ParentDocumentRetriever(
-        vectorstore=vector_store,
-        byte_store=store,
-        child_splitter=child_splitter,
-        parent_splitter=parent_splitter,
-    )
-    retriever.add_documents(load_docs())
-    return retriever
+    global retriever
+    if retriever is None:
+        print(f"retriever is none")
+        _build_lock = threading.Lock()
+        with _build_lock:
+            retriever = ParentDocumentRetriever(
+                vectorstore=vector_store,
+                byte_store=store,
+                child_splitter=child_splitter,
+                parent_splitter=parent_splitter,
+            )
+            retriever.add_documents(load_docs())
+            return retriever
+    else:
+        print(f"retriever is {retriever}")
+        return retriever
