@@ -32,6 +32,7 @@ class ContextSchema(TypedDict):
     courtesy_ctr_th: int
     persona: str
     name: str
+    loggedin_name: str
 
 
 @dataclass
@@ -80,7 +81,8 @@ def analyze_and_classify(state: BioMessageState, runtime: Runtime[ContextSchema]
     prompt_template = Prompt.from_template(prompt_str)
     chain = prompt_template | model
     question = state["messages"][-1].content
-    response = chain.invoke({"name": runtime.context['name'], "question": question})
+    response = chain.invoke({"loggedin_name": runtime.context['loggedin_name'],
+                             "name": runtime.context['name'], "question": question})
     ctr = state['ctr']
     personal_ctr = state['personal_ctr']
     courtesy_ctr = state['courtesy_ctr']
@@ -95,19 +97,21 @@ def analyze_and_classify(state: BioMessageState, runtime: Runtime[ContextSchema]
         if courtesy_ctr >= runtime.context['courtesy_ctr_th']:
             main_resp = {"role": "ai", "content": "Nice talking to you!. Have to go. Good Bye!"}
         else:
-            main_resp = courtesy_query(state, courtesy_prompt, runtime.context['name'])
+            main_resp = courtesy_query(state, courtesy_prompt, runtime.context['name'],
+                                       runtime.context['loggedin_name'])
         courtesy_ctr = 1
     else:
         if personal_ctr >= runtime.context['personal_ctr_th']:
             main_resp = {"role": "ai", "content": "Too many personal questions - Good Bye!"}
         else:
-            main_resp = personal_query(state, personal_prompt, runtime.context['name'])
+            main_resp = personal_query(state, personal_prompt, runtime.context['name'],
+                                       runtime.context['loggedin_name'])
         personal_ctr = 1
     return {"messages": [main_resp], "ctr": ctr, "personal_ctr": personal_ctr, "courtesy_ctr": courtesy_ctr}
 
 
-def courtesy_query(state: MessagesState, courtesy_prompt, name):
-    system_message_content = courtesy_prompt.format(name=name)
+def courtesy_query(state: MessagesState, courtesy_prompt, name, loggedin_name):
+    system_message_content = courtesy_prompt.format(name=name, loggedin_name = loggedin_name)
 
     prompt = [SystemMessage(system_message_content)] + state["messages"]
 
@@ -115,7 +119,7 @@ def courtesy_query(state: MessagesState, courtesy_prompt, name):
     return response
 
 
-def personal_query(state: MessagesState, personal_prompt, name):
+def personal_query(state: MessagesState, personal_prompt, name, loggedin_name):
     system_message_content = personal_prompt.format(name=name)
     prompt = [SystemMessage(system_message_content)] + state["messages"]
 
@@ -140,9 +144,11 @@ def generate(state: BioMessageState, runtime: Runtime[ContextSchema]) -> Message
     docs_content = "\n\n".join(doc.content for doc in tool_messages)
 
     if runtime.context['persona'] == "agent":
-        generate_prompt = agent_generate_message_prompt.format(name=runtime.context['name'])
+        generate_prompt = agent_generate_message_prompt.format(name=runtime.context['name'],
+                                                               loggedin_name=runtime.context['loggedin_name'])
     else:
-        generate_prompt = me_generate_message_prompt.format(name=runtime.context['name'])
+        generate_prompt = me_generate_message_prompt.format(name=runtime.context['name'],
+                                                            loggedin_name=runtime.context['loggedin_name'])
 
     system_message_content = generate_prompt + f"{docs_content}"
 
