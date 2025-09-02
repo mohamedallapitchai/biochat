@@ -18,7 +18,8 @@ dependencies = [
     "pypdf",
     "langchain-text-splitters",
     "sentence-transformers",
-    "boto3"
+    "boto3",
+    "unstructured"
 ]
 
 
