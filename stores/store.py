@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
 
 _build_lock = threading.Lock()
-LOCK_FILE = "/tmp/retriever.build.lock"  # per-container lock
+#LOCK_FILE = "/tmp/retriever.build.lock"  # per-container lock
 
 
 def _collection_is_empty(client, collection):
@@ -28,6 +28,7 @@ def _collection_is_empty(client, collection):
 
 def _ingest_if_needed(retriever, client, collection):
     if _collection_is_empty(client, collection):
+        logger.info(f"collection is empty at {collection} so loading")
         # load_docs() → your S3 loader; run once to add children + parents
         retriever.add_documents(load_docs())
 
@@ -43,7 +44,7 @@ def get_retriever():
                                    child_splitter=child_splitter, parent_splitter=parent_splitter)
 
     # one-time guarded ingest across threads + processes
-    with _build_lock, FileLock(LOCK_FILE):
+    with _build_lock:#, FileLock(LOCK_FILE):
         logger.info(f"TRYING TO GET RETRIEVER")
         _ingest_if_needed(retr, client, os.environ["QDRANT_COLLECTION"])
     return retr
