@@ -58,5 +58,5 @@ def get_retriever():
     # one-time guarded ingest across threads + processes
     with _build_lock, FileLock(LOCK_FILE):
         logger.info(f"RETRIEVER is not in cache, loading docs from s3 and creating retriever")
-        _ingest_if_needed(retr, client, os.environ["QDRANT_COLLECTION"])
+        _ingest_if_needed(retr, client, os.environ["QDRANT_COLLECTION"], byte_store.root_path)
     return retr
