@@ -12,7 +12,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
-docs: List[Document]  = []
+docs: List[Document] = []
+_build_lock = threading.Lock()
 
 
 def load_docs() -> List[Document]:
@@ -22,7 +23,6 @@ def load_docs() -> List[Document]:
     exts = (".pdf", ".txt")
     if len(docs) == 0:
         logger.info(f"docs is none")
-        _build_lock = threading.Lock()
         with _build_lock:
             s3 = boto3.client("s3")
             docs = []
