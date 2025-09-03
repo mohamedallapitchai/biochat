@@ -20,7 +20,10 @@ dependencies = [
     "sentence-transformers",
     "boto3",
     "unstructured[pdf]",
-    "opencv-python-headless>=4.9"
+    "opencv-python-headless>=4.9",
+    "filelock",
+    "qdrant-client",
+    "langchain-qdrant"
 ]
 
 
