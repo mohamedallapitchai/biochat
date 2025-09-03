@@ -83,9 +83,9 @@ def analyze_and_classify(state: BioMessageState, runtime: Runtime[ContextSchema]
     question = state["messages"][-1].content
     response = chain.invoke({"loggedin_name": runtime.context['loggedin_name'],
                              "name": runtime.context['name'], "question": question})
-    ctr = state['ctr']
-    personal_ctr = state['personal_ctr']
-    courtesy_ctr = state['courtesy_ctr']
+    ctr = 0
+    personal_ctr = 0
+    courtesy_ctr = 0
     logger.info(f"type of question is : {response.content.lower()}")
     if response.content.lower() == "professional":
         if ctr >= runtime.context['ctr_th']:
