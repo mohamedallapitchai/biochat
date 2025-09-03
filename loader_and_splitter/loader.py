@@ -2,7 +2,7 @@ import logging
 import os
 import tempfile
 import threading
-from typing import List
+from typing import List, Optional
 
 import boto3
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
@@ -12,47 +12,50 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
-docs: List[Document] = []
-_build_lock = threading.Lock()
+_docs_cache: Optional[List[Document]] = None   # sentinel: not loaded yet
+_docs_lock = threading.Lock()
 
 
 def load_docs() -> List[Document]:
-    global docs
+    global _docs_cache
     bucket: str = "biochat"
     prefix: str = "bio/"
     exts = (".pdf", ".txt")
-    if len(docs) == 0:
-        logger.info(f"docs is none")
-        with _build_lock:
-            s3 = boto3.client("s3")
-            docs = []
-            for page in s3.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix):
-                for obj in page.get("Contents", []) or []:
-                    key = obj["Key"]
-                    if key.endswith("/") or not key.lower().endswith(exts):
-                        continue
-                    suffix = os.path.splitext(key)[1].lower()
-                    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-                        s3.download_fileobj(bucket, key, tmp)
-                        path = tmp.name
+    if _docs_cache is not None:
+        return _docs_cache
+    with _docs_lock:
+        s3 = boto3.client("s3")
+        docs: List[Document] = []
+        n_keys = 0
+
+        for page in s3.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix):
+            for obj in page.get("Contents", []) or []:
+                key = obj["Key"]
+                if key.endswith("/") or not key.lower().endswith(exts):
+                    continue
+                n_keys += 1
+                suffix = os.path.splitext(key)[1].lower()
+                with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                    s3.download_fileobj(bucket, key, tmp)
+                    path = tmp.name
+                try:
+                    if suffix == ".pdf":
+                        loader = PyPDFLoader(path)
+                    else:
+                        loader = TextLoader(path, encoding="utf-8")
+                    file_docs = loader.load()
+                    for d in file_docs:
+                        d.metadata.setdefault("source", f"s3://{bucket}/{key}")
+                    docs.extend(file_docs)
+                finally:
                     try:
-                        if suffix == ".pdf":
-                            loader = PyPDFLoader(path)
-                        else:
-                            loader = TextLoader(path, encoding="utf-8")
-                        file_docs = loader.load()
-                        for d in file_docs:
-                            d.metadata.setdefault("source", f"s3://{bucket}/{key}")
-                        docs.extend(file_docs)
-                    finally:
-                        try:
-                            os.unlink(path)
-                        except OSError:
-                            pass
-                return docs
-    else:
-        logger.info(f"docs is not empty")
-        return docs
+                        os.unlink(path)
+                    except OSError:
+                        pass
+            logger.info("Loaded %d files; produced %d documents", n_keys, len(docs))
+            _docs_cache = docs
+            return _docs_cache
+
 
     # def load_docs():
 
