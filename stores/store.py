@@ -1,3 +1,4 @@
+import logging
 import threading
 
 from langchain.retrievers import ParentDocumentRetriever
@@ -12,12 +13,14 @@ vector_store = InMemoryVectorStore(embeddings)
 store = InMemoryStore()
 
 retriever = None
-
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.setLevel(level=logging.INFO)
 
 def get_retriever():
     global retriever
     if retriever is None:
-        print(f"retriever is none")
+        logger.info(f"retriever is none")
         _build_lock = threading.Lock()
         with _build_lock:
             retriever = ParentDocumentRetriever(
@@ -29,5 +32,5 @@ def get_retriever():
             retriever.add_documents(load_docs())
             return retriever
     else:
-        print(f"retriever is {retriever}")
+        logger.info(f"retriever is {retriever}")
         return retriever

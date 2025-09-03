@@ -1,3 +1,4 @@
+import logging
 import threading
 
 from typing import List
@@ -6,20 +7,24 @@ from langchain_community.document_loaders import S3FileLoader, S3DirectoryLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.setLevel(level=logging.INFO)
 docs: List[Document] | None = None
 
 
 def load_docs():
     global docs
     if docs is None:
-        print(f"docs is none")
+        logger.info(f"docs is none")
         _build_lock = threading.Lock()
         with _build_lock:
             loader = S3DirectoryLoader(bucket="biochat", prefix="bio/")
             docs = loader.load()
             return docs
     else:
-        print(f"docs is already loaded")
+        logger.info(f"docs is already loaded")
         return docs
 
 
