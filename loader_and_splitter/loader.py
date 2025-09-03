@@ -73,7 +73,7 @@ def load_docs() -> List[Document]:
 #         return docs
 
 
-parent_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, add_start_index=True)
+parent_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, add_start_index=True, chunk_overlap=200)
 # This text splitter is used to create the child documents
 # It should create documents smaller than the parent
-child_splitter = RecursiveCharacterTextSplitter(chunk_size=400, add_start_index=True)
+child_splitter = RecursiveCharacterTextSplitter(chunk_size=400, add_start_index=True, chunk_overlap=80)

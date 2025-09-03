@@ -2,6 +2,7 @@ import logging
 import os
 import threading
 from functools import lru_cache
+from pathlib import Path
 
 from dotenv import load_dotenv
 from filelock import FileLock
@@ -18,19 +19,30 @@ logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
 
 _build_lock = threading.Lock()
-#LOCK_FILE = "/tmp/retriever.build.lock"  # per-container lock
+LOCK_FILE = "/tmp/retriever.build.lock"  # per-container lock
 
 
-def _collection_is_empty(client, collection):
-    info = client.get_collection(collection)
-    return (info.points_count or 0) == 0
+def _collection_is_empty(client, collection: str) -> bool:
+    try:
+        info = client.get_collection(collection)
+        return (info.points_count or 0) == 0
+    except Exception:
+        # collection might not exist yet
+        return True
 
 
-def _ingest_if_needed(retriever, client, collection):
-    if _collection_is_empty(client, collection):
-        logger.info(f"collection is empty at {collection} so loading")
-        # load_docs() → your S3 loader; run once to add children + parents
-        retriever.add_documents(load_docs())
+def _parent_store_missing(parent_store_dir: str) -> bool:
+    p = Path(parent_store_dir)
+    return not p.exists() or not any(p.glob("**/*"))
+
+
+def _ingest_if_needed(retriever, client, collection: str, parent_store_dir: str):
+    if _collection_is_empty(client, collection) or _parent_store_missing(parent_store_dir):
+        logger.info(f"TRYING TO GET RETRIEVER")
+        docs = load_docs()
+        # Pass stable ids to avoid duplicates if ingest runs twice
+        ids = [doc.metadata.get("source", str(i)) for i, doc in enumerate(docs)]
+        retriever.add_documents(docs, ids=ids)
 
 
 @lru_cache(maxsize=1)
@@ -44,7 +56,7 @@ def get_retriever():
                                    child_splitter=child_splitter, parent_splitter=parent_splitter)
 
     # one-time guarded ingest across threads + processes
-    with _build_lock:#, FileLock(LOCK_FILE):
-        logger.info(f"TRYING TO GET RETRIEVER")
+    with _build_lock, FileLock(LOCK_FILE):
+        logger.info(f"RETRIEVER is not in cache, loading docs from s3 and creating retriever")
         _ingest_if_needed(retr, client, os.environ["QDRANT_COLLECTION"])
     return retr
