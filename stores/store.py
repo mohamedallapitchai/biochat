@@ -38,11 +38,8 @@ def _parent_store_missing(parent_store_dir: str) -> bool:
 
 def _ingest_if_needed(retriever, client, collection: str, parent_store_dir: str):
     if _collection_is_empty(client, collection) or _parent_store_missing(parent_store_dir):
-        logger.info(f"TRYING TO GET RETRIEVER")
         docs = load_docs()
-        # Pass stable ids to avoid duplicates if ingest runs twice
-        ids = [doc.metadata.get("source", str(i)) for i, doc in enumerate(docs)]
-        retriever.add_documents(docs, ids=ids)
+        retriever.add_documents(docs)
 
 
 @lru_cache(maxsize=1)
