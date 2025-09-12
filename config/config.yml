@@ -1,0 +1,15 @@
+models:
+  - type: content_safety
+    engine: nvidia_ai_endpoints
+    model: nvidia/llama-3.1-nemoguard-8b-content-safety
+
+rails:
+  input:
+    flows:
+      - content safety check input $model=content_safety
+    streaming:
+      enabled: True
+      chunk_size: 200
+      context_size: 50
+
+streaming: True
