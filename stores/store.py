@@ -78,11 +78,12 @@ def get_retriever():
 
 @lru_cache(maxsize=1)
 def get_retriever2():
-    emb = OpenAIEmbeddings(model="text-embedding-3-small")
+    logger.warning("get_retriever2() called")
+    #emb = OpenAIEmbeddings(model="text-embedding-3-small")
     load_dotenv()
-    client = QdrantClient(url=os.environ["QDRANT_URL"], api_key=os.environ["QDRANT_API_KEY"])
+    #zclient = QdrantClient(url=os.environ["QDRANT_URL"], api_key=os.environ["QDRANT_API_KEY"])
     vs = Chroma(
-        collection_name="split_parents", embedding_function=OpenAIEmbeddings()
+        collection_name="split_parents", embedding_function=OpenAIEmbeddings(model="text-embedding-3-small")
     )
     byte_store = InMemoryStore()
     retriever = ParentDocumentRetriever(vectorstore=vs, byte_store=byte_store,
@@ -99,7 +100,7 @@ def get_retriever2():
 if __name__ == "__main__":
     load_dotenv()
     ret = get_retriever2()
-    docs = ret.invoke("Give me Mohamed's education")
+    docs = ret.invoke("What are his AI trainings ?")
     print(f"length of docs is {len(docs)}")
     for doc in docs:
         print(doc.page_content)
