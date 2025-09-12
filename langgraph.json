@@ -4,5 +4,8 @@
     "agent": "./agent/graph.py:graph"
   },
   "env": ".env",
-  "image_distro": "wolfi"
+  "image_distro": "wolfi",
+  "dockerfile_lines": [
+        "RUN apk add --no-cache build-base"
+    ]
 }
