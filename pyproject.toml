@@ -25,8 +25,8 @@ dependencies = [
     "qdrant-client",
     "langchain-qdrant",
     "langchain-nvidia-ai-endpoints",
-    "nemoguardrails==0.16.0",
-    "annoy>=1.17.3"
+    "nemoguardrails",
+    "annoy"
 ]
 
 
