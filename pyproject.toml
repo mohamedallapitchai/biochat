@@ -25,7 +25,8 @@ dependencies = [
     "qdrant-client",
     "langchain-qdrant",
     "langchain-nvidia-ai-endpoints",
-    "nemoguardrails"
+    "nemoguardrails",
+    "langchain-chroma"
 ]
 
 
