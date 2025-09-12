@@ -1,11 +1,11 @@
 {
+  "dockerfile_lines": [
+        "RUN apk add --no-cache build-base"
+    ],
   "dependencies": ["."],
   "graphs": {
     "agent": "./agent/graph.py:graph"
   },
   "env": ".env",
-  "image_distro": "wolfi",
-  "dockerfile_lines": [
-        "RUN apk add --no-cache build-base"
-    ]
+  "image_distro": "wolfi"
 }
