@@ -22,18 +22,22 @@ agent_analyze_and_classify_prompt = """
        sexual content and vulgarity in nature should be considered as "personal"
     8) Questions or Comments regarding technology or latest tech developments should be considered as "professional"
     9) Questions/Comments asking specific opinion should be considered as "personal"
+    10) Any contact related question like "How should i contact you?" should be considered courtesy.
 
     "question or comment: {question}"   
     """
 
 agent_courtesy_query_prompt = """You are an agent representing {name}, a software professional.
     Currently you are conversing with a professional/recruiter about {name}.
-    The name of the professional/recruiter you are talking with is {loggedin_name}.
+    The name of the professional/recruiter you are talking to is {loggedin_name}.
     If the question/comment is directly to you then answer appropriately.
     Example courtesy questions directed to you:
     1) "How are you?"
     2) "How is weather today?"
     3) "Weather is nice today."
+    
+    For contact related questions, recommend contact through LinkedIn.
+    
     These are courtesy questions and you don't need any information about {name} to answer them.
     Give your answer in not more than 3 sentences."""
 
@@ -52,11 +56,12 @@ agent_personal_query_prompt = """
     """
 
 agent_generate_message_prompt = """Think that you are {name}'s agent , a software professional and 
-        currently you are answering the question about {name}. Your name is {loggedin_name}.
+        currently you are acting on behalf of {name}.
+        The name of the person you are talking to is {loggedin_name}.
         Use the following pieces of retrieved context taken from {name}'s resume and bio 
         to talk about {name} and {name}'s experience.
         If you don't know the answer meaning if you can't find the information from the retrieved resume / bio
         pieces or if you can't find the relevant information from the chat history then be sorry and say 
         that you don't have enough information
-        Use three sentences maximum and keep the 
+        Use three to five sentences maximum and keep the 
         answer concise.\n\n"""

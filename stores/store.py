@@ -7,10 +7,13 @@ from pathlib import Path
 from dotenv import load_dotenv
 from filelock import FileLock
 from langchain.retrievers import ParentDocumentRetriever
+from langchain.storage import InMemoryStore
 from langchain.storage import LocalFileStore
+from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
+from qdrant_client.http import models as models
 
 from loader_and_splitter.loader import load_docs, child_splitter, parent_splitter
 
@@ -38,8 +41,22 @@ def _parent_store_missing(parent_store_dir: str) -> bool:
 
 def _ingest_if_needed(retriever, client, collection: str, parent_store_dir: str):
     if _collection_is_empty(client, collection) or _parent_store_missing(parent_store_dir):
-        docs = load_docs()
-        retriever.add_documents(docs)
+        documents = load_docs()
+        client.delete(
+            collection_name=collection,
+            points_selector=models.FilterSelector(
+                filter=models.Filter(
+                    must=[
+                    ],
+                )
+            ),
+        )
+        retriever.add_documents(documents)
+
+
+def _ingest_if_needed2(retriever):
+    documents = load_docs()
+    retriever.add_documents(documents)
 
 
 @lru_cache(maxsize=1)
@@ -57,3 +74,32 @@ def get_retriever():
         logger.info(f"RETRIEVER is not in cache, loading docs from s3 and creating retriever")
         _ingest_if_needed(retr, client, os.environ["QDRANT_COLLECTION"], byte_store.root_path)
     return retr
+
+
+@lru_cache(maxsize=1)
+def get_retriever2():
+    emb = OpenAIEmbeddings(model="text-embedding-3-small")
+    load_dotenv()
+    client = QdrantClient(url=os.environ["QDRANT_URL"], api_key=os.environ["QDRANT_API_KEY"])
+    vs = Chroma(
+        collection_name="split_parents", embedding_function=OpenAIEmbeddings()
+    )
+    byte_store = InMemoryStore()
+    retriever = ParentDocumentRetriever(vectorstore=vs, byte_store=byte_store,
+                                        child_splitter=child_splitter, parent_splitter=parent_splitter)
+    # retriever = vs.as_retriever(search_type="mmr",)
+
+    # one-time guarded ingest across threads + processes
+    with _build_lock, FileLock(LOCK_FILE):
+        logger.info(f"RETRIEVER is not in cache for Chroma, loading docs from s3 and creating retriever")
+        _ingest_if_needed2(retriever)
+    return retriever
+
+
+if __name__ == "__main__":
+    load_dotenv()
+    ret = get_retriever2()
+    docs = ret.invoke("Give me Mohamed's education")
+    print(f"length of docs is {len(docs)}")
+    for doc in docs:
+        print(doc.page_content)

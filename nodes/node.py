@@ -3,18 +3,19 @@ import operator
 from dataclasses import dataclass
 from typing import TypedDict, Annotated
 
-from langchain.prompts import Prompt
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, AIMessage
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langgraph.graph import MessagesState
 from langgraph.runtime import Runtime
 
-from model.model import model
+from model.model import model, guard_rails
 from persona.agent import agent_analyze_and_classify_prompt, agent_courtesy_query_prompt, agent_personal_query_prompt, \
     agent_generate_message_prompt
 from persona.me import me_analyze_and_classify_prompt, me_courtesy_query_prompt, me_personal_query_prompt, \
     me_generate_message_prompt
-from stores.store import get_retriever
+from stores.store import get_retriever2
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ def retrieve(query: str):
     # print("INSIDE TOOL")
 
     # retrieved_docs = vector_store.similarity_search(query, k=2)
-    retrieved_docs = get_retriever().invoke(query)
+    retrieved_docs = get_retriever2().invoke(query)
     serialized = "\n\n".join(
         f"Source: {doc.metadata}\nContent: {doc.page_content}"
         for doc in retrieved_docs
@@ -62,7 +63,7 @@ def query_or_respond(state: BioMessageState, context: Runtime[ContextSchema]) ->
     llm_with_tools = model.bind_tools([retrieve], tool_choice="retrieve")
     response = llm_with_tools.invoke(state["messages"])
     # MessagesState appends messages to state instead of overwriting
-    # print(f"response content in query_or_respond is {response.content}")
+    logger.info(f"response content in query_or_respond is {response}")
     return response
     # return {"messages": [response]}
 
@@ -78,49 +79,54 @@ def analyze_and_classify(state: BioMessageState, runtime: Runtime[ContextSchema]
         personal_prompt = me_personal_query_prompt
 
     # print(f"state counter is {state['ctr']}")
-    prompt_template = Prompt.from_template(prompt_str)
-    chain = prompt_template | model
+    # prompt_template = Prompt.from_template(prompt_str)
     question = state["messages"][-1].content
-    response = chain.invoke({"loggedin_name": runtime.context['loggedin_name'],
-                             "name": runtime.context['name'], "question": question})
+    prompt_template = ChatPromptTemplate.from_messages(("system", prompt_str))
+    guard_chain = prompt_template | (guard_rails | model) | StrOutputParser()
+
+    response = guard_chain.invoke({"loggedin_name": runtime.context['loggedin_name'],
+                                   "name": runtime.context['name'], "question": question})
     ctr = 0
     personal_ctr = 0
     courtesy_ctr = 0
-    logger.info(f"type of question is : {response.content.lower()}")
-    if response.content.lower() == "professional":
+    logger.info(f"type of question is : {response.lower()}")
+    if response.lower() == "professional":
         if ctr >= runtime.context['ctr_th']:
             main_resp = {"role": "ai", "content": "Hope you got enough information!. Have to go. Good Bye!"}
         else:
             main_resp = query_or_respond(state, runtime)
         ctr = 1
-    elif response.content.lower() == "courtesy":
+    elif response.lower() == "courtesy":
         if courtesy_ctr >= runtime.context['courtesy_ctr_th']:
             main_resp = {"role": "ai", "content": "Nice talking to you!. Have to go. Good Bye!"}
         else:
             main_resp = courtesy_query(state, courtesy_prompt, runtime.context['name'],
                                        runtime.context['loggedin_name'])
         courtesy_ctr = 1
-    else:
+    elif response.lower() == "personal":
         if personal_ctr >= runtime.context['personal_ctr_th']:
             main_resp = {"role": "ai", "content": "Too many personal questions - Good Bye!"}
         else:
             main_resp = personal_query(state, personal_prompt, runtime.context['name'],
                                        runtime.context['loggedin_name'])
         personal_ctr = 1
+    else:
+        main_resp = AIMessage(response)
     return {"messages": [main_resp], "ctr": ctr, "personal_ctr": personal_ctr, "courtesy_ctr": courtesy_ctr}
 
 
 def courtesy_query(state: MessagesState, courtesy_prompt, name, loggedin_name):
-    system_message_content = courtesy_prompt.format(name=name, loggedin_name = loggedin_name)
+    system_message_content = courtesy_prompt.format(name=name, loggedin_name=loggedin_name)
 
     prompt = [SystemMessage(system_message_content)] + state["messages"]
 
     response = model.invoke(prompt)
+    logger.info(f"type of response is: {type(response)}")
     return response
 
 
 def personal_query(state: MessagesState, personal_prompt, name, loggedin_name):
-    system_message_content = personal_prompt.format(name=name)
+    system_message_content = personal_prompt.format(name=name, loggedin_name=loggedin_name)
     prompt = [SystemMessage(system_message_content)] + state["messages"]
 
     response = model.invoke(prompt)
@@ -143,12 +149,12 @@ def generate(state: BioMessageState, runtime: Runtime[ContextSchema]) -> Message
     # Format into prompt
     docs_content = "\n\n".join(doc.content for doc in tool_messages)
 
+    logger.info(f"docs_content is {docs_content}")
+
     if runtime.context['persona'] == "agent":
-        generate_prompt = agent_generate_message_prompt.format(name=runtime.context['name'],
-                                                               loggedin_name=runtime.context['loggedin_name'])
+        generate_prompt = agent_generate_message_prompt
     else:
-        generate_prompt = me_generate_message_prompt.format(name=runtime.context['name'],
-                                                            loggedin_name=runtime.context['loggedin_name'])
+        generate_prompt = me_generate_message_prompt
 
     system_message_content = generate_prompt + f"{docs_content}"
 
@@ -161,7 +167,11 @@ def generate(state: BioMessageState, runtime: Runtime[ContextSchema]) -> Message
     # print(f"prompt is ${prompt}")
 
     # Run
-    response = model.invoke(prompt)
+    # response = model.invoke(prompt)
+    prompt = ChatPromptTemplate.from_messages(prompt)
+    guard_chain = prompt | (guard_rails | model)
+    response = guard_chain.invoke({"name": runtime.context['name'], "loggedin_name": runtime.context['loggedin_name']})
+    logger.info(f"response is {response}")
     return {"messages": [response]}
 
 # def stop_condition(state: BioMessageState):
