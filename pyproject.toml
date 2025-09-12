@@ -24,9 +24,7 @@ dependencies = [
     "filelock",
     "qdrant-client",
     "langchain-qdrant",
-    "langchain-nvidia-ai-endpoints",
-    "nemoguardrails",
-    "annoy"
+    "langchain-nvidia-ai-endpoints"
 ]
 
 

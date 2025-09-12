@@ -1,8 +1,14 @@
 {
+  "python_version": "3.11",
   "dockerfile_lines": [
-        "RUN apk add --no-cache build-base"
+        "RUN apk add --no-cache build-base",
+        "RUN pip install --only-binary=:all: annoy",
+        "RUN pip install nemoguardrails"
+
     ],
-  "dependencies": ["."],
+  "dependencies": {
+    "pyproject": "pyproject.toml"
+  },
   "graphs": {
     "agent": "./agent/graph.py:graph"
   },
