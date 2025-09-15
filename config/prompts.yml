@@ -31,10 +31,10 @@ prompts:
       <END UNSAFE CONTENT CATEGORIES>
       
   
-      General courtesy questions like "How are you" should be considered safe.
-      Questions about Education, Professional work experience, general Interests should be considered safe.
-      Questions about {name}'s Education, Professional work experience, general Interests should be considered as
-      safe content category.
+        Questions about work, experience, profession, education, recent education or work activities 
+        should be considered as follows:
+        "User Safety": safe
+        "Response Safety": safe
 
       <BEGIN CONVERSATION>
 
@@ -87,6 +87,12 @@ prompts:
         response: agent: {{ bot_response }}
         
         <END CONVERSATION>
+      
+        Answers about work, experience, profession, education, recent education or work activities 
+        should be considered as follows:
+        "User Safety": safe
+        "Response Safety": safe
+
         
         Provide your safety assessment for the above conversation in the below output JSON format:
         {"User Safety": safe or unsafe rating for the user message, "Response Safety": safe or unsafe rating for the agent response. Omit if no agent response present. "Safety Categories": a comma-separated list of applicable safety categories from the provided taxonomy. Omit if all safe.}

@@ -35,6 +35,7 @@ def load_docs() -> List[Document]:
         for page in s3.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix):
             for obj in page.get("Contents", []) or []:
                 key = obj["Key"]
+                print(f"key is {key}")
                 if key.endswith("/") or not key.lower().endswith(exts):
                     continue
                 n_keys += 1
@@ -57,7 +58,6 @@ def load_docs() -> List[Document]:
                     except OSError:
                         pass
             logger.info("Loaded %d files; produced %d documents", n_keys, len(docs))
-            print("Loaded %d files; produced %d documents", n_keys, len(docs))
             _docs_cache = docs
             return _docs_cache
 

@@ -6,6 +6,7 @@ from typing import TypedDict, Annotated
 from langchain_core.messages import SystemMessage, AIMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
 from langchain_core.tools import tool
 from langgraph.graph import MessagesState
 from langgraph.runtime import Runtime
@@ -15,7 +16,9 @@ from persona.agent import agent_analyze_and_classify_prompt, agent_courtesy_quer
     agent_generate_message_prompt
 from persona.me import me_analyze_and_classify_prompt, me_courtesy_query_prompt, me_personal_query_prompt, \
     me_generate_message_prompt
-from stores.store import get_retriever2
+from stores.store import doc_retriever
+from stores.user_data import user_df
+import pandas as pd
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,13 +46,20 @@ class BioMessageState(MessagesState):
     courtesy_ctr: Annotated[int, operator.add] = 0
 
 
+def replace_braces(metadata):
+    for key, value in metadata.items():
+        if type(value) is str:
+            metadata[key] = value.replace("{", "{{").replace("}", "}}")
+    return metadata
+
+
 @tool(response_format="content_and_artifact")
 def retrieve(query: str):
     """Retrieve information related to a query asking for professional information"""
     # print("INSIDE TOOL")
 
     # retrieved_docs = vector_store.similarity_search(query, k=2)
-    retrieved_docs = get_retriever2().invoke(query)
+    retrieved_docs = doc_retriever.invoke(query)
     serialized = "\n\n".join(
         f"Source: {doc.metadata}\nContent: {doc.page_content}"
         for doc in retrieved_docs
@@ -68,6 +78,31 @@ def query_or_respond(state: BioMessageState, context: Runtime[ContextSchema]) ->
     # return {"messages": [response]}
 
 
+def retrieve_user_info(name):
+    """Retrieve information related to a query like 'do you know me' or 'tell me about me' or
+    'what do you know about me"""
+    name_splits = name.split(" ")
+    (first_name, last_name) = name_splits[0], " ".join(name_splits[1:])
+    logger.info(f"first name is {first_name}, last name is {last_name}")
+
+    try:
+        df = user_df[(user_df["Last Name"] == last_name) & (user_df["First Name"] == first_name)]
+
+        if df.empty:
+            return "", "", ""
+        else:
+            company = df['Company'].iloc[0] if not pd.isna(df['Company'].iloc[0]) else ""
+            logger.info(f"Company is {company}")
+            position = df['Position'].iloc[0] if not pd.isna(df['Position'].iloc[0]) else ""
+            logger.info(f"Position is {position}")
+            values = df['Values'].iloc[0] if not pd.isna(df['Company'].iloc[0]) else ""
+            logger.info(f"Values is {values}")
+            return company, position, values
+    except Exception as e:
+        logger.error(f"Caught an exception: {e}")
+        return "", "", ""
+
+
 def analyze_and_classify(state: BioMessageState, runtime: Runtime[ContextSchema]) -> BioMessageState:
     if runtime.context['persona'] == "agent":
         prompt_str = agent_analyze_and_classify_prompt
@@ -78,8 +113,6 @@ def analyze_and_classify(state: BioMessageState, runtime: Runtime[ContextSchema]
         courtesy_prompt = me_courtesy_query_prompt
         personal_prompt = me_personal_query_prompt
 
-    # print(f"state counter is {state['ctr']}")
-    # prompt_template = Prompt.from_template(prompt_str)
     question = state["messages"][-1].content
     prompt_template = ChatPromptTemplate.from_messages(("system", prompt_str))
     guard_chain = prompt_template | (guard_rails | model) | StrOutputParser()
@@ -112,15 +145,24 @@ def analyze_and_classify(state: BioMessageState, runtime: Runtime[ContextSchema]
         personal_ctr = 1
     else:
         main_resp = AIMessage(response)
+
     return {"messages": [main_resp], "ctr": ctr, "personal_ctr": personal_ctr, "courtesy_ctr": courtesy_ctr}
 
 
 def courtesy_query(state: MessagesState, courtesy_prompt, name, loggedin_name):
-    system_message_content = courtesy_prompt.format(name=name, loggedin_name=loggedin_name)
+    #    system_message_content = courtesy_prompt.format(name=name, loggedin_name=loggedin_name)
 
-    prompt = [SystemMessage(system_message_content)] + state["messages"]
+    (company, position, comment) = retrieve_user_info(loggedin_name)
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", courtesy_prompt),
+        *state["messages"]
+    ])
 
-    response = model.invoke(prompt)
+    guard_chain = prompt | (guard_rails | model)
+    response = guard_chain.invoke({"name": name, "company_name": company,
+                                   "profession": position, "loggedin_name": loggedin_name,
+                                   "comment": comment})
+
     logger.info(f"type of response is: {type(response)}")
     return response
 
@@ -128,7 +170,6 @@ def courtesy_query(state: MessagesState, courtesy_prompt, name, loggedin_name):
 def personal_query(state: MessagesState, personal_prompt, name, loggedin_name):
     system_message_content = personal_prompt.format(name=name, loggedin_name=loggedin_name)
     prompt = [SystemMessage(system_message_content)] + state["messages"]
-
     response = model.invoke(prompt)
     return response
 
@@ -147,9 +188,8 @@ def generate(state: BioMessageState, runtime: Runtime[ContextSchema]) -> Message
     tool_messages = recent_tool_messages[::-1]
 
     # Format into prompt
-    docs_content = "\n\n".join(doc.content for doc in tool_messages)
-
-    logger.info(f"docs_content is {docs_content}")
+    docs_content = "\n\n".join(doc.content.replace("{", "{{").replace("}", "}}") for doc in tool_messages)
+    # docs_content = "\n\n".join(doc.content[''] for doc in tool_messages)
 
     if runtime.context['persona'] == "agent":
         generate_prompt = agent_generate_message_prompt
@@ -163,31 +203,16 @@ def generate(state: BioMessageState, runtime: Runtime[ContextSchema]) -> Message
         for message in state["messages"]
         if (message.type in ("human", "system") or (message.type == "ai" and not message.tool_calls))
     ]
-    prompt = [SystemMessage(system_message_content)] + conversation_messages
+    # prompt = [SystemMessage(system_message_content)] + conversation_messages
     # print(f"prompt is ${prompt}")
 
     # Run
     # response = model.invoke(prompt)
-    prompt = ChatPromptTemplate.from_messages(prompt)
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_message_content),
+        *conversation_messages
+    ])
     guard_chain = prompt | (guard_rails | model)
     response = guard_chain.invoke({"name": runtime.context['name'], "loggedin_name": runtime.context['loggedin_name']})
     logger.info(f"response is {response}")
     return {"messages": [response]}
-
-# def stop_condition(state: BioMessageState):
-#     msg = state["messages"][-1]
-#     # print(f"in stop condition, msg type is {msg.type} and msg content is {msg.content}")
-#     if msg.type == "human" and msg.content.startswith("bye"):
-#         print("Exceeding your quota or personal/courtesy exceeded limits - exiting")
-#         return True
-#     else:
-#         return False
-#
-#
-# def spacer_node(state: BioMessageState) -> MessagesState:
-#     # print("In spacer node")
-#     resp_msg = state["messages"][-1]
-#     # print(resp_msg.content)
-#     input_message = input("Mohamed: ")
-#     return {"messages": [HumanMessage(input_message)]}
-#     # return state

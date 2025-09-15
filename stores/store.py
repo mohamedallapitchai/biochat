@@ -79,9 +79,9 @@ def get_retriever():
 @lru_cache(maxsize=1)
 def get_retriever2():
     logger.warning("get_retriever2() called")
-    #emb = OpenAIEmbeddings(model="text-embedding-3-small")
+    # emb = OpenAIEmbeddings(model="text-embedding-3-small")
     load_dotenv()
-    #zclient = QdrantClient(url=os.environ["QDRANT_URL"], api_key=os.environ["QDRANT_API_KEY"])
+    # zclient = QdrantClient(url=os.environ["QDRANT_URL"], api_key=os.environ["QDRANT_API_KEY"])
     vs = Chroma(
         collection_name="split_parents", embedding_function=OpenAIEmbeddings(model="text-embedding-3-small")
     )
@@ -96,6 +96,8 @@ def get_retriever2():
         _ingest_if_needed2(retriever)
     return retriever
 
+
+doc_retriever = get_retriever2()
 
 if __name__ == "__main__":
     load_dotenv()

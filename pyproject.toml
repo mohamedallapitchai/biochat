@@ -26,7 +26,8 @@ dependencies = [
     "langchain-qdrant",
     "langchain-nvidia-ai-endpoints",
     "nemoguardrails",
-    "langchain-chroma"
+    "langchain-chroma",
+    "s3fs"
 ]
 
 
