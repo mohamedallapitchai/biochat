@@ -36,7 +36,7 @@ prompts:
         "User Safety": safe
         "Response Safety": safe
       
-        Questions like "do you know me?" 
+        Questions like "do you know me?", "do you know who I am?", "tell me who I am ?", "Who I am?"
         should be considered as follows:
         "User Safety": safe
         "Response Safety": safe
