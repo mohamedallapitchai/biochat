@@ -3,10 +3,10 @@ import operator
 from dataclasses import dataclass
 from typing import TypedDict, Annotated
 
+import pandas as pd
 from langchain_core.messages import SystemMessage, AIMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
 from langchain_core.tools import tool
 from langgraph.graph import MessagesState
 from langgraph.runtime import Runtime
@@ -18,7 +18,6 @@ from persona.me import me_analyze_and_classify_prompt, me_courtesy_query_prompt,
     me_generate_message_prompt
 from stores.store import doc_retriever
 from stores.user_data import user_df
-import pandas as pd
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -86,7 +85,8 @@ def retrieve_user_info(name):
     logger.info(f"first name is {first_name}, last name is {last_name}")
 
     try:
-        df = user_df[(user_df["Last Name"] == last_name) & (user_df["First Name"] == first_name)]
+        df = user_df[(user_df["Last Name"].str.title() == last_name.title()) &
+                     (user_df["First Name"].str.title() == first_name.title())]
 
         if df.empty:
             return "", "", ""
