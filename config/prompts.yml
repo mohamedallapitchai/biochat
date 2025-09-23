@@ -84,11 +84,11 @@ prompts:
         S23: Immoral/Unethical.
         <END UNSAFE CONTENT CATEGORIES>
       
-      For user or agent messages regarding work, experience, profession, education, recent education or work activities
-      avoid checking the policy with the below categories and consider the User Safety and Response Safety as "safe"
+        For user or agent messages regarding work, experience, profession, education, recent education or work activities
+        avoid checking the policy with the below categories and consider the User Safety and Response Safety as "safe"
       
-      For user messages like "do you know me?", "do you know who I am?", "tell me who I am ?", "Who I am?" avoid
-      checking the policy with the below categories and consider the User Safety and Response Safety as "safe"
+        For user messages like "do you know me?", "do you know who I am?", "tell me who I am ?", "Who I am?" avoid
+        checking the policy with the below categories and consider the User Safety and Response Safety as "safe"
         
         <BEGIN CONVERSATION>
         
