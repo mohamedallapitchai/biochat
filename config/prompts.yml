@@ -31,6 +31,9 @@ prompts:
       <END UNSAFE CONTENT CATEGORIES>
       
       
+      Consider any experience related messages such as "talk about your experience" by user as "safe" for both 
+      User Safety and Response Safety categories
+      
       For user or agent messages regarding work, experience, profession, education, recent education or work activities
       avoid checking the policy with the below categories and consider the User Safety and Response Safety as "safe"
       
@@ -86,6 +89,9 @@ prompts:
         S22: Illegal Activity.
         S23: Immoral/Unethical.
         <END UNSAFE CONTENT CATEGORIES>
+      
+        Consider any experience related messages such as "talk about your experience" by user as "safe" for both 
+        User Safety and Response Safety categories
       
         For user or agent messages regarding work, experience, profession, education, recent education or work activities
         avoid checking the policy with the below categories and consider the User Safety and Response Safety as "safe"
