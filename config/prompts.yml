@@ -35,6 +35,11 @@ prompts:
         should be considered as follows:
         "User Safety": safe
         "Response Safety": safe
+      
+        Questions like "do you know me?" 
+        should be considered as follows:
+        "User Safety": safe
+        "Response Safety": safe
 
       <BEGIN CONVERSATION>
 
